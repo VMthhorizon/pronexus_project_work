@@ -8,16 +8,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-def connect_database():
-    return psycopg2.connect(
-        host=os.getenv("DB_HOST"),
-        port=os.getenv("DB_PORT"),
-        dbname=os.getenv("DB_NAME"),
-        user=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASSWORD"),
-    )
-
-
 lista_dipendenti = []
 try:
     with open("dipendenti.csv", "r", newline="", encoding="utf-8") as file_csv:
@@ -43,6 +33,46 @@ try:
 except FileNotFoundError as e:
 
     print(f"ATTENZIONE: Il FILE non esiste! {e}")
+
+
+def connect_database():
+    return psycopg2.connect(
+        host=os.getenv("DB_HOST"),
+        port=os.getenv("DB_PORT"),
+        dbname=os.getenv("DB_NAME"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+    )
+
+
+def dipendenti_reparto():
+    try:
+        connessione = connect_database()
+        cursore = connessione.cursor()
+        input_reparto = input("Inserisci un reparto ").strip()
+        query = (
+            "SELECT d.reparto, d2.nome, d2.cognome FROM dipartimento AS d LEFT JOIN dipendente AS d2 "
+            "ON d.id_dipartimento = d2.id_dipartimento "
+            "WHERE d.reparto = %s;"
+        )
+
+        cursore.execute(query, (input_reparto,))
+        risultati = cursore.fetchall()
+
+        if risultati:
+            for riga in risultati:
+                print(riga)
+        else:
+            print("Nessun risultato trovato!")
+
+        cursore.close()
+
+    except Error as errore:
+        print("Errore nella connessione al DB!")
+    finally:
+        if "connessione" in locals() and connessione:
+            connessione.close()
+            print("Connessione al DB chiusa!")
 
 
 def aggiungi_dipendente():
@@ -130,6 +160,7 @@ while True:
                 "1 - Per aggiungere un nuovo dipendente\n"
                 "2 - Per cercare un dipendente tramite il cognome corrispondente\n"
                 "3 - Per visualizzare l'elenco dei dipendenti per reparto, in ordine alfabetico\n"
+                "4 - Per cercare i dipendenti di un dipartimento\n"
                 "0 - Per uscire dal programma\n"
             ).strip()
         )
@@ -145,6 +176,10 @@ while True:
 
         case 3:
             ordina_dipendenti()
+
+        case 4:
+            dipendenti_reparto()
+
         case 0:
             break
         case _:
