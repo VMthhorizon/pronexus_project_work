@@ -8,33 +8,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-lista_dipendenti = []
-try:
-    with open("dipendenti.csv", "r", newline="", encoding="utf-8") as file_csv:
-
-        reader = csv.DictReader(file_csv)
-
-        for riga in reader:
-            try:
-                stipendio = float(riga["stipendio"])
-            except ValueError as e:
-                print(f"Non è stato inserito un numero corretto! {e}")
-                continue
-
-            lista_dipendenti.append(
-                {
-                    "Nome": riga["nome"].strip().upper(),
-                    "Cognome": riga["cognome"].strip().upper(),
-                    "Reparto": riga["reparto"].strip().upper(),
-                    "Stipendio": stipendio,
-                }
-            )
-
-except FileNotFoundError as e:
-
-    print(f"ATTENZIONE: Il FILE non esiste! {e}")
-
-
 def connect_database():
     return psycopg2.connect(
         host=os.getenv("DB_HOST"),
@@ -68,7 +41,8 @@ def dipendenti_reparto():
         cursore.close()
 
     except Error as errore:
-        print("Errore nella connessione al DB!")
+        print(f"Errore nella connessione al DB: {errore}")
+
     finally:
         if "connessione" in locals() and connessione:
             connessione.close()
@@ -76,79 +50,181 @@ def dipendenti_reparto():
 
 
 def aggiungi_dipendente():
+
     nome = input("Scrivi il nome del dipendente da aggiungere ").strip().upper()
     cognome = input("Scrivi il cognome del dipendente da aggiungere ").strip().upper()
-    reparto = input("Scrivi il reparto del dipendente da aggiungere ").strip().upper()
+    email = input("Scrivi l'email del dipendente da aggiungere ").strip().upper()
+    data_assunzione = (
+        input(
+            "Inserisci la data in cui il dipendente è stato assunto (es. DD-MM-AAAA) "
+        )
+        .strip()
+        .upper()
+    )
 
     try:
         stipendio = float(input("Scrivi lo stipendio del dipendente da aggiungere "))
     except ValueError as e:
         print(f"Non hai inserito un valore valido! {e}")
+        return
 
-    nuovo_dipendente = {
-        "Nome": nome,
-        "Cognome": cognome,
-        "Reparto": reparto,
-        "Stipendio": stipendio,
-    }
-
-    lista_dipendenti.append(nuovo_dipendente)
+    id_dipartimento = int(input("Scrivi l'id del dipartimento da aggiungere "))
 
     try:
-        with open("dipendenti.csv", "a", newline="", encoding="utf-8") as file:
+        connessione = connect_database()
 
-            writer = csv.writer(file)
+        cursore = connessione.cursor()
 
-            writer.writerow(
-                [
-                    nuovo_dipendente["Nome"],
-                    nuovo_dipendente["Cognome"],
-                    nuovo_dipendente["Reparto"],
-                    nuovo_dipendente["Stipendio"],
-                ]
-            )
+        query = (
+            "INSERT INTO dipendente (nome, cognome, email, data_di_assunzione, stipendio, id_dipartimento) "
+            "values (%s, %s, %s, %s, %s, %s);"
+        )
 
-    except OSError as e:
-        print(f"File non trovato o corrotto! {e}")
+        cursore.execute(
+            query, (nome, cognome, email, data_assunzione, stipendio, id_dipartimento)
+        )
+
+        connessione.commit()
+        print("Dipendente aggiunto correttamente")
+
+    except Error as error:
+        if connessione:
+            connessione.rollback()
+            print(f"ERRORE: {error} | Rollback effettuato")
+
+    finally:
+        if connessione:
+            connessione.close()
+            print("Connessione chiusa")
 
 
 def cerca_dipendente():
     cognome_dipendente = input(
-        "Inserisci il cognome del dipendente che vuoi cercare "
-    ).upper()
-    dipendenti_trovati = [
-        dipendente
-        for dipendente in lista_dipendenti
-        if dipendente["Cognome"] == cognome_dipendente
-    ]
+        "Inserisci il cognome del dipendente che vuoi cercare: "
+    ).strip()
 
-    if not dipendenti_trovati:
-        print("Nessun dipendente trovato!")
-        return
+    try:
+        connessione = connect_database()
+        cursore = connessione.cursor()
 
-    for trovato in dipendenti_trovati:
-        print(
-            f"Nome: {trovato['Nome']} | Cognome: {trovato['Cognome']} | "
-            f"Reparto: {trovato['Reparto']} | Stipendio: {trovato['Stipendio']}"
+        query = (
+            "SELECT d.id_dipendente, d.nome, d.cognome, d.stipendio, d2.reparto "
+            "FROM dipendente as d "
+            "LEFT JOIN dipartimento as d2 "
+            "  ON d.id_dipartimento = d2.id_dipartimento "
+            "WHERE d.cognome ILIKE %s "
+            "ORDER BY d.id_dipendente;"
         )
 
+        cursore.execute(query, (cognome_dipendente,))
+        risultati = cursore.fetchall()
 
-def chiave_reparto(dipendente):
-    return dipendente["Reparto"]
+        for id_dip, nome, cognome, stipendio, reparto in risultati:
+            print(
+                f"ID: {id_dip} | Nome: {nome} | Cognome: {cognome} | "
+                f"Reparto: {reparto} | Stipendio: {stipendio}"
+            )
+
+    except Error as errore:
+        print(f"ERRORE: {errore}")
+
+    finally:
+        if connessione:
+            connessione.close()
+            print("Connessione al DB chiusa!")
 
 
 def ordina_dipendenti():
-    if not lista_dipendenti:
-        print("Nessun dipendente presente.")
-        return
 
-    ordinati = sorted(lista_dipendenti, key=chiave_reparto)
+    try:
+        connessione = connect_database()
 
-    for dipendente in ordinati:
-        print(
-            f"Nome: {dipendente['Nome']} | Cognome: {dipendente['Cognome']} | "
-            f"Reparto: {dipendente['Reparto']} | Stipendio: {dipendente['Stipendio']}"
+        cursore = connessione.cursor()
+
+        query = (
+            "SELECT d.id_dipendente, d.nome, d.cognome, d2.reparto "
+            "FROM dipendente AS d "
+            "LEFT JOIN dipartimento AS d2 on d.id_dipartimento = d2.id_dipartimento "
+            "ORDER BY d2.reparto;"
         )
+
+        cursore.execute(query)
+
+        risultati = cursore.fetchall()
+
+        for riga in risultati:
+            print(
+                f"id: {riga[0]} | Nome: {riga[1]} | "
+                f"Cognome: {riga[2]} | Reparto: {riga[3]}"
+            )
+
+    except Error as errore:
+        print(f"ERRORE: {errore}")
+
+    finally:
+        if "connessione" in locals() and connessione:
+            connessione.close()
+            print("Connessione al DB chiusa!")
+
+
+def media_stipendi():
+
+    try:
+
+        connessione = connect_database()
+
+        cursore = connessione.cursor()
+
+        query = (
+            "select d.reparto, coalesce(round(avg(d2.stipendio) , 2), 0) AS media_stipendio "
+            "FROM dipartimento AS d "
+            "LEFT JOIN dipendente AS d2 ON d.id_dipartimento = d2.id_dipartimento "
+            "GROUP BY d.reparto;"
+        )
+
+        cursore.execute(query)
+
+        risultati = cursore.fetchall()
+
+        for riga in risultati:
+            print(f"Reparto: {riga[0]} | Media Stipendi: {riga[1]}")
+
+    except Error as errore:
+        print(f"ERRORE: {errore}")
+
+    finally:
+        if "connessione" in locals() and connessione:
+            connessione.close()
+            print("Connessione chiusa!")
+
+
+def update_stipendi():
+
+    try:
+        connessione = connect_database()
+
+        cursore = connessione.cursor()
+
+        query = (
+            "UPDATE dipendente SET stipendio = stipendio * %s "
+            "WHERE dipendente.data_di_assunzione >= %s AND dipendente.data_di_assunzione <= %s;"
+        )
+
+        cursore.execute(query, (1.05, "01-01-2020", "31-12-2020"))
+
+        connessione.commit()
+
+        print("Stipendio per i dipendenti assunti nel 2020 aggiornato")
+
+    except Error as errore:
+        if connessione:
+            connessione.rollback()
+            print(f"ERRORE: {errore}, AZIONE ANNULLATA")
+
+    finally:
+        connessione.close()
+
+        print("CONNESSIONE CHIUSA")
 
 
 while True:
@@ -159,13 +235,16 @@ while True:
                 "Inserisci:\n"
                 "1 - Per aggiungere un nuovo dipendente\n"
                 "2 - Per cercare un dipendente tramite il cognome corrispondente\n"
-                "3 - Per visualizzare l'elenco dei dipendenti per reparto, in ordine alfabetico\n"
+                "3 - Per visualizzare l'elenco dei dipendenti e del relativo reparto\n"
                 "4 - Per cercare i dipendenti di un dipartimento\n"
+                "5 - Per avere la lista degli stipendi medi in base al reparto\n"
+                "6 - Per aggiornare gli stipendi dei dipendenti assunti nel 2020\n"
                 "0 - Per uscire dal programma\n"
             ).strip()
         )
     except ValueError as e:
         print(f"Valore inserito non valido {e}")
+        continue
 
     match opzioni:
         case 1:
@@ -179,6 +258,12 @@ while True:
 
         case 4:
             dipendenti_reparto()
+
+        case 5:
+            media_stipendi()
+
+        case 6:
+            update_stipendi()
 
         case 0:
             break
