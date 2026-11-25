@@ -20,37 +20,6 @@ def connect_database():
     )
 
 
-def dipendenti_reparto():
-    try:
-        connessione = connect_database()
-        cursore = connessione.cursor()
-        input_reparto = input("Inserisci un reparto ").strip()
-        query = (
-            "SELECT d.reparto, d2.nome, d2.cognome FROM dipartimento AS d LEFT JOIN dipendente AS d2 "
-            "ON d.id_dipartimento = d2.id_dipartimento "
-            "WHERE d.reparto = %s;"
-        )
-
-        cursore.execute(query, (input_reparto,))
-        risultati = cursore.fetchall()
-
-        if risultati:
-            for riga in risultati:
-                print(riga)
-        else:
-            print("Nessun risultato trovato!")
-
-        cursore.close()
-
-    except Error as errore:
-        print(f"Errore nella connessione al DB: {errore}")
-
-    finally:
-        if "connessione" in locals() and connessione:
-            connessione.close()
-            print("Connessione al DB chiusa!")
-
-
 def aggiungi_dipendente():
 
     nome = input("Scrivi il nome del dipendente da aggiungere ").strip().upper()

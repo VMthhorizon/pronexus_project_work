@@ -1,6 +1,10 @@
-nome,cognome,reparto,stipendio
-Mario,Rossi,IT,1800.0
-Anna,Bianchi,Amministrazione,2100.0
-Luca,Verdi,Marketing,1950.0
-Serena,Rossi,IT,2000.0
-ERNESTO,PIROZZI,CUSTOM SERVICE,1200.0
+id_dipendente,nome,cognome,email,data_di_assunzione,stipendio,id_dipartimento
+9,Luca,Sordi,luca@gmail.com,2022-01-12,1400.00,1
+10,Paolo,Sordi,Paolo@gmail.com,2023-01-12,1350.00,2
+11,Andrea,Sordi,Andrea@gmail.com,2024-01-12,1100.00,3
+12,Fabrizio,Sordi,Fabrizio@gmail.com,2022-10-10,700.00,3
+13,Giovanni,Izzo,Giovanni@gmail.com,2014-11-08,2200.00,2
+14,Vincenzo,Esposito,Vincenzo@gmail.com,2020-04-05,2500.00,5
+15,Roberto,Fumagalli,Roberto@gmail.com,2013-09-24,1600.00,5
+16,Riccardo,Bianchi,Riccardo@gmail.com,2002-12-11,1800.00,5
+17,Eleonora,Borghi,ele@gmail.com,2018-03-20,1400.00,
