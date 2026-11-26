@@ -1,13 +1,74 @@
 import psycopg2
 import os
 import csv
-from psycopg2 import Error
+import pandas as pd
+import re
+import numpy as np
 
-
-from psycopg2 import Error
 from dotenv import load_dotenv
+from psycopg2 import Error
 
 load_dotenv()
+
+
+def read_csv(file):
+
+    df = pd.read_csv(f"{file}")
+
+    df_copia = df.copy()
+
+    return df_copia
+
+
+def pulizia_stipendio(value):
+
+    if pd.isna(value):
+        return np.nan
+
+    string_value = str(value).strip()
+    caratteri_giusti = re.sub(r"[^0-9.,-]", "", string_value)
+    caratteri_giusti = caratteri_giusti.replace(",", ".")
+
+    try:
+        numero = float(caratteri_giusti)
+    except ValueError:
+        return np.nan
+
+    if "." in caratteri_giusti and len(caratteri_giusti.split(".")[1]) > 2:
+        return np.nan
+
+    return round(numero, 2)
+
+
+def df_cleaning_imputation():
+
+    df = read_csv("dipendenti.csv")
+
+    # DATA CLEANING
+    df["nome"] = df["nome"].str.strip().str.lower().str.capitalize()
+    df["cognome"] = df["cognome"].str.strip().str.lower().str.capitalize()
+    df["email"] = df["email"].str.strip().str.lower()
+    df["data di assunzione"] = pd.to_datetime(
+        df["data_di_assunzione"],
+        format="mixed",
+        errors="coerce",
+    )
+    df["stipendio"] = df["stipendio"].apply(pulizia_stipendio).astype(float).round(2)
+    df["id_dipartimento"] = (
+        pd.to_numeric(df["id_dipartimento"], errors="coerce").round(0).astype("Int64")
+    )
+
+    # DATA IMPUTATION
+    df["nome"] = df["nome"].fillna("Non Specificato")
+    df["cognome"] = df["cognome"].fillna("Non Specificato")
+    df["email"] = df["email"].fillna("Non Specificato")
+
+    return df
+
+
+df_pulito = df_cleaning_imputation()
+
+print(df_pulito)
 
 
 def connect_database():
