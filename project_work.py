@@ -1,9 +1,8 @@
-import psycopg2
 import os
-import csv
 import pandas as pd
 import re
 import numpy as np
+from sqlalchemy import text, create_engine
 
 from dotenv import load_dotenv
 from psycopg2 import Error
@@ -48,7 +47,7 @@ def df_cleaning_imputation():
     df["nome"] = df["nome"].str.strip().str.lower().str.capitalize()
     df["cognome"] = df["cognome"].str.strip().str.lower().str.capitalize()
     df["email"] = df["email"].str.strip().str.lower()
-    df["data di assunzione"] = pd.to_datetime(
+    df["data_di_assunzione"] = pd.to_datetime(
         df["data_di_assunzione"],
         format="mixed",
         errors="coerce",
@@ -66,19 +65,28 @@ def df_cleaning_imputation():
     return df
 
 
-df_pulito = df_cleaning_imputation()
+def load_df_to_db():
+    connection_url = f"postgresql+psycopg2://{os.getenv("DB_USER")}:{os.getenv("DB_PASSWORD")}@{os.getenv("DB_HOST")}:{os.getenv("DB_PORT")}/{os.getenv("DB_NAME")}"
+    engine = create_engine(connection_url)
 
-print(df_pulito)
+    df_pulito = df_cleaning_imputation()
+
+    try:
+        with engine.begin() as conn:
+
+            df_pulito.to_sql(
+                name="dipendente",
+                con=conn,
+                if_exists="replace",
+                index=False,
+            )
+            print("Dati caricati al DB con successo!")
+
+    except Exception as e:
+        print(f"ERRORE di connessione o scrittura: {e}")
 
 
-def connect_database():
-    return psycopg2.connect(
-        host=os.getenv("DB_HOST"),
-        port=os.getenv("DB_PORT"),
-        dbname=os.getenv("DB_NAME"),
-        user=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASSWORD"),
-    )
+load_df_to_db()
 
 
 def dipendenti_reparto():
