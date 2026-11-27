@@ -10,6 +10,11 @@ from psycopg2 import Error
 load_dotenv()
 
 
+def connect_db():
+    connection_url = f"postgresql+psycopg2://{os.getenv("DB_USER")}:{os.getenv("DB_PASSWORD")}@{os.getenv("DB_HOST")}:{os.getenv("DB_PORT")}/{os.getenv("DB_NAME")}"
+    return create_engine(connection_url)
+
+
 def read_csv(file):
 
     df = pd.read_csv(f"{file}")
@@ -66,8 +71,7 @@ def df_cleaning_imputation():
 
 
 def load_df_to_db():
-    connection_url = f"postgresql+psycopg2://{os.getenv("DB_USER")}:{os.getenv("DB_PASSWORD")}@{os.getenv("DB_HOST")}:{os.getenv("DB_PORT")}/{os.getenv("DB_NAME")}"
-    engine = create_engine(connection_url)
+    engine = connect_db()
 
     df_pulito = df_cleaning_imputation()
 
@@ -86,7 +90,7 @@ def load_df_to_db():
         print(f"ERRORE di connessione o scrittura: {e}")
 
 
-load_df_to_db()
+"""load_df_to_db()"""
 
 
 def dipendenti_reparto():
